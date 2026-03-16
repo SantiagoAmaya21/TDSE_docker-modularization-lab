@@ -33,21 +33,6 @@ flowchart TD
     G --> H[GetMapping Methods Return String]
 ```
 
-```mermaid
-sequenceDiagram
-    participant Client
-    participant HttpServer
-    participant ReflectionHandler
-    participant Controller
-
-    Client->>HttpServer: HTTP GET request
-    HttpServer->>HttpServer: Parse request and parameters
-    HttpServer->>ReflectionHandler: handle path and params
-    ReflectionHandler->>Controller: invoke controller method
-    Controller-->>ReflectionHandler: return string response
-    ReflectionHandler-->>HttpServer: response body
-    HttpServer-->>Client: HTTP 200 OK response
-```
 
 - **Entrada**: `MicroSpringBoot` escanea o recibe por argumentos las clases con `@RestController`, las registra en `ReflectionRequestHandler` y arranca `HttpServer` en el puerto configurado.
 - **Puerto configurable**: por defecto **35000**, o por variable de entorno `PORT` (útil en Docker/EC2).
@@ -118,15 +103,19 @@ Para publicar en un registro (ej. ECR o Docker Hub):
 
 ```bash
 # Ejemplo con tag para ECR
-docker tag microspringboot:latest <account-id>.dkr.ecr.<region>.amazonaws.com/microspringboot:latest
-docker push <account-id>.dkr.ecr.<region>.amazonaws.com/microspringboot:latest
+docker tag microspringboot <account-id>/microspringboot:latest
+docker push <account-id>/microspringboot:latest
 ```
+
+![Imagen3](img/imagen3.png)
 
 ### Ejecución del contenedor (prueba local)
 
 ```bash
 docker run -p 8087:6000 microspringboot:latest
 ```
+
+![Imagen1](img/imagen1.png)
 
 En el contenedor la aplicación escucha en `PORT=6000` (configurado en el `Dockerfile`). Para apagado elegante:
 
@@ -135,6 +124,8 @@ docker stop <container_id>
 ```
 
 El servidor dejará de aceptar nuevas conexiones y esperará a que las peticiones en curso terminen antes de salir.
+
+![Imagen2](img/imagen2.png)
 
 ---
 
@@ -148,6 +139,8 @@ docker compose up --build
 
 - Web: `http://localhost:8087/`
 - Mongo: expuesto en `localhost:27017` (contenedor `db`)
+
+![Imagen1](img/imagen1.png)
 
 Para detener:
 
