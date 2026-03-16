@@ -12,43 +12,29 @@ Aplicación web basada en un framework propio (sin Spring) que ofrece un servido
   - Atiende **múltiples peticiones en paralelo** mediante un pool de hilos.
   - Realiza un **apagado elegante**: deja de aceptar nuevas conexiones y espera a que las peticiones en curso terminen antes de cerrar (ideal para contenedores y SIGTERM).
 
-El proyecto está preparado para construirse como JAR, empaquetarse en una imagen Docker y desplegarse en EC2.
+El proyecto está preparado para compilar a `target/classes`, copiar dependencias a `target/dependency` (Maven Dependency Plugin), y construir una imagen Docker **sin compilar dentro del contenedor** (siguiendo el estilo de guía del curso).
 
 ---
 
 ## Arquitectura
 
-```
-                    ┌─────────────────────────────────────────┐
-                    │            MicroSpringBoot               │
-                    │  (registra controladores, inicia server) │
-                    └────────────────────┬────────────────────┘
-                                         │
-                    ┌────────────────────▼────────────────────┐
-                    │              HttpServer                  │
-                    │  • ServerSocket (acepta conexiones)      │
-                    │  • ExecutorService (pool de hilos)       │
-                    │  • Shutdown hook + stop() elegante       │
-                    └────────────────────┬────────────────────┘
-                                         │
-         ┌───────────────────────────────┼───────────────────────────────┐
-         │                               │                               │
-         ▼                               ▼                               ▼
-  ┌──────────────┐              ┌─────────────────┐             ┌──────────────┐
-  │ GET /ruta    │              │ ReflectionRequest│             │ Static files │
-  │ → RequestHandler.handle()   │ Handler (IoC)    │             │ (HTML, etc.) │
-  └──────────────┘              └────────┬─────────┘             └──────────────┘
-                                         │
-                                         ▼
-                              ┌─────────────────────┐
-                              │ @RestController     │
-                              │ (HelloController,   │
-                              │  GreetingController,│
-                              │  FirstWebService)   │
-                              └─────────────────────┘
+```mermaid
+flowchart TD
+  A[MicroSpringBoot\n(Entry point)] --> B[ReflectionRequestHandler\n(IoC + Reflection)]
+  A --> C[HttpServer\n(ServerSocket + ThreadPool)]
+
+  C -->|GET /path?qs| D[handleConnection\n(parse request)]
+  D --> E[RequestHandler.handle(path, queryParams)]
+  E --> B
+
+  D -->|si no hay ruta| F[Static files\n(classpath /static)]
+
+  B --> G[@RestController\n(controllers)]
+  G --> H[@GetMapping methods\nreturn String]
 ```
 
-- **Entrada**: `MicroSpringBoot` escanea o recibe por argumentos las clases con `@RestController`, las registra en `ReflectionRequestHandler` y arranca `HttpServer` en el puerto configurado (por defecto 35000).
+- **Entrada**: `MicroSpringBoot` escanea o recibe por argumentos las clases con `@RestController`, las registra en `ReflectionRequestHandler` y arranca `HttpServer` en el puerto configurado.
+- **Puerto configurable**: por defecto **35000**, o por variable de entorno `PORT` (útil en Docker/EC2).
 - **Concurrencia**: cada conexión TCP aceptada se delega a un hilo del pool (tamaño por defecto 16). Varias peticiones se atienden al mismo tiempo.
 - **Apagado elegante**: al recibir SIGTERM (p. ej. `docker stop`) o Ctrl+C, se ejecuta un shutdown hook que cierra el `ServerSocket`, hace `executor.shutdown()` y espera hasta 30 s a que terminen las tareas en curso antes de salir.
 
@@ -67,6 +53,22 @@ El proyecto está preparado para construirse como JAR, empaquetarse en una image
 
 Flujo de una petición GET: `HttpServer` recibe la conexión en un hilo del pool → parsea método, path y query → llama a `RequestHandler.handle(path, queryParams)` → si devuelve valor, lo envía como 200 OK; si no, intenta servir recurso estático o devuelve 404.
 
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as HttpServer
+  participant H as ReflectionRequestHandler
+  participant R as Controller Method
+
+  C->>S: TCP connect + HTTP GET /greeting?name=...
+  S->>S: parse request + query params
+  S->>H: handle(path, queryParams)
+  H->>R: invoke @GetMapping method (reflection)
+  R-->>H: String body
+  H-->>S: String body
+  S-->>C: HTTP/1.1 200 OK + body
+```
+
 ---
 
 ## Cómo generar las imágenes Docker
@@ -77,13 +79,16 @@ Flujo de una petición GET: `HttpServer` recibe la conexión en un hilo del pool
 - Maven 3.x
 - Docker
 
-### Build del JAR
+### Build (clases compiladas + dependencias copiadas)
 
 ```bash
-mvn clean package -DskipTests
+mvn clean package
 ```
 
-El JAR se genera en `target/reflexionlab-1.0-SNAPSHOT.jar` con `Main-Class` en el manifest.
+Esto genera:
+
+- `target/classes` (clases compiladas)
+- `target/dependency` (dependencias copiadas por `maven-dependency-plugin`)
 
 ### Construcción de la imagen Docker
 
@@ -104,10 +109,10 @@ docker push <account-id>.dkr.ecr.<region>.amazonaws.com/microspringboot:latest
 ### Ejecución del contenedor (prueba local)
 
 ```bash
-docker run -p 35000:35000 microspringboot:latest
+docker run -p 8087:6000 microspringboot:latest
 ```
 
-La aplicación escucha en el puerto 35000. Para apagado elegante:
+En el contenedor la aplicación escucha en `PORT=6000` (configurado en el `Dockerfile`). Para apagado elegante:
 
 ```bash
 docker stop <container_id>
@@ -117,12 +122,31 @@ El servidor dejará de aceptar nuevas conexiones y esperará a que las peticione
 
 ---
 
+## Docker Compose (web + mongo)
+
+En la raíz del proyecto:
+
+```bash
+docker compose up --build
+```
+
+- Web: `http://localhost:8087/`
+- Mongo: expuesto en `localhost:27017` (contenedor `db`)
+
+Para detener:
+
+```bash
+docker compose down
+```
+
+---
+
 ## Despliegue en AWS EC2
 
-1. **EC2**: lanzar una instancia (Amazon Linux 2 o Ubuntu), abrir el puerto que uses (p. ej. 80 o 35000) en el security group.
+1. **EC2**: lanzar una instancia (Amazon Linux 2 o Ubuntu), abrir el puerto que uses (p. ej. 8087 o 80) en el security group.
 2. **Docker en EC2**: instalar Docker en la instancia y, si aplica, configurar autenticación a ECR.
-3. **Ejecutar**: `docker run -d -p 35000:35000 --name app microspringboot:latest` (o la imagen que hayas subido a ECR).
-4. Probar con `http://<IP-pública-EC2>:35000/`.
+3. **Ejecutar**: `docker run -d -p 8087:6000 --name app microspringboot:latest` (o la imagen que hayas subido a ECR/DockerHub).
+4. Probar con `http://<IP-pública-EC2>:8087/`.
 
 *(Aquí puedes añadir capturas de pantalla de tu despliegue en EC2 y de las pruebas realizadas.)*
 
@@ -147,10 +171,10 @@ O con el JAR:
 java -jar target/reflexionlab-1.0-SNAPSHOT.jar
 ```
 
-Para registrar solo ciertos controladores por línea de comandos:
+Para ejecutar con classpath manual (nota: en Windows el separador es `;`, en Linux/macOS es `:`):
 
 ```bash
-java -cp target/classes co.edu.escuelaing.reflexionlab.MicroSpringBoot co.edu.escuelaing.reflexionlab.controller.FirstWebService
+java -cp "target/classes;target/dependency/*" co.edu.escuelaing.reflexionlab.MicroSpringBoot
 ```
 
 ---
