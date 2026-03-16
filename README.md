@@ -1,5 +1,7 @@
 # MicroSpringBoot - Servidor web IoC con reflexión (Java)
 
+Estudiante: Santiago Amaya Zapata
+
 Aplicación web basada en un framework propio (sin Spring) que ofrece un servidor HTTP con inyección de control vía reflexión, concurrencia y apagado elegante, pensada para desplegarse en AWS EC2 con Docker.
 
 ---
@@ -186,8 +188,4 @@ Para ejecutar con classpath manual (nota: en Windows el separador es `;`, en Lin
 java -cp "target/classes;target/dependency/*" co.edu.escuelaing.reflexionlab.MicroSpringBoot
 ```
 
----
 
-## Licencia
-
-Uso académico / proyecto TDSE.
