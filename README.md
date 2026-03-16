@@ -185,4 +185,6 @@ Para ejecutar con classpath manual (nota: en Windows el separador es `;`, en Lin
 java -cp "target/classes;target/dependency/*" co.edu.escuelaing.reflexionlab.MicroSpringBoot
 ```
 
+## Video del despliegue funcionando
 
+![Demo](img/Containers-Docker-Desktop-2026-03-15-22-30-41.gifdemo.gif)
