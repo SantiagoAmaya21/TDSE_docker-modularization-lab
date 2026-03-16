@@ -20,17 +20,33 @@ El proyecto está preparado para compilar a `target/classes`, copiar dependencia
 
 ```mermaid
 flowchart TD
-  A["MicroSpringBoot<br/>(Entry point)"] --> B["ReflectionRequestHandler<br/>(IoC + Reflection)"]
-  A --> C["HttpServer<br/>(ServerSocket + ThreadPool)"]
+    A[MicroSpringBoot Entry Point] --> B[ReflectionRequestHandler IoC and Reflection]
+    A --> C[HttpServer ServerSocket ThreadPool]
 
-  C -->|GET /path?qs| D["handleConnection<br/>(parse request)"]
-  D --> E[RequestHandler.handle(path, queryParams)]
-  E --> B
+    C --> D[Handle Connection Parse Request]
+    D --> E[RequestHandler Handle Path and Params]
+    E --> B
 
-  D -->|si no hay ruta| F["Static files<br/>(classpath /static)"]
+    D --> F[Serve Static Files From Classpath]
 
-  B --> G["@RestController<br/>(controllers)"]
-  G --> H["@GetMapping methods<br/>return String"]
+    B --> G[RestController Controllers]
+    G --> H[GetMapping Methods Return String]
+```
+
+```mermaid
+sequenceDiagram
+    participant Client
+    participant HttpServer
+    participant ReflectionHandler
+    participant Controller
+
+    Client->>HttpServer: HTTP GET request
+    HttpServer->>HttpServer: Parse request and parameters
+    HttpServer->>ReflectionHandler: handle path and params
+    ReflectionHandler->>Controller: invoke controller method
+    Controller-->>ReflectionHandler: return string response
+    ReflectionHandler-->>HttpServer: response body
+    HttpServer-->>Client: HTTP 200 OK response
 ```
 
 - **Entrada**: `MicroSpringBoot` escanea o recibe por argumentos las clases con `@RestController`, las registra en `ReflectionRequestHandler` y arranca `HttpServer` en el puerto configurado.
