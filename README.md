@@ -154,21 +154,18 @@ docker compose down
 
 ## Despliegue en AWS EC2
 
-1. **EC2**: lanzar una instancia (Amazon Linux 2 o Ubuntu), abrir el puerto que uses (p. ej. 8087 o 80) en el security group.
+1. **EC2**: lanzar una instancia (Amazon Linux 2 o Ubuntu), abrir el puerto que uses en el security group.
 2. **Docker en EC2**: instalar Docker en la instancia y, si aplica, configurar autenticación a ECR.
-3. **Ejecutar**: `docker run -d -p 8087:6000 --name app microspringboot:latest` (o la imagen que hayas subido a ECR/DockerHub).
+3. **Ejecutar**: `docker run -d -p 8087:6000 --name microspringbootaws santiago2103/tdse-docker-modularization-lab`
 4. Probar con `http://<IP-pública-EC2>:8087/`.
 
-*(Aquí puedes añadir capturas de pantalla de tu despliegue en EC2 y de las pruebas realizadas.)*
+![Imagen4](img/imagen4.png)
+
 
 ### Imágenes del despliegue
 
-*(Incluir aquí capturas de:)*  
-*- Navegador mostrando la aplicación en la URL de EC2.*  
-*- Consola o logs del contenedor en la instancia.*  
-*- Opcional: panel de EC2 o Docker en AWS.*
+![Imagen5](img/imagen5.png)
 
----
 
 ## Ejecución local (sin Docker)
 
