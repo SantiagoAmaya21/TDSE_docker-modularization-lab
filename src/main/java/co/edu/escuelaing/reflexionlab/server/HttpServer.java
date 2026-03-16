@@ -233,6 +233,24 @@ public class HttpServer {
     }
 
     public static int getDefaultPort() {
+        String envPort = System.getenv("PORT");
+        if (envPort != null && !envPort.isBlank()) {
+            try {
+                int p = Integer.parseInt(envPort.trim());
+                if (p > 0 && p <= 65535) return p;
+            } catch (NumberFormatException ignored) {
+                // fallback to default
+            }
+        }
+        String sysPropPort = System.getProperty("port");
+        if (sysPropPort != null && !sysPropPort.isBlank()) {
+            try {
+                int p = Integer.parseInt(sysPropPort.trim());
+                if (p > 0 && p <= 65535) return p;
+            } catch (NumberFormatException ignored) {
+                // fallback to default
+            }
+        }
         return DEFAULT_PORT;
     }
 }
